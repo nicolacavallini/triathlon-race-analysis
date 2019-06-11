@@ -1,5 +1,6 @@
 import xlrd
 from datetime import datetime
+from datetime import timedelta
 
 import numpy as np
 
@@ -24,7 +25,7 @@ def string_to_time(input):
     return time_list
 
 
-def read_times(filename,fraction):
+def read_times_xls(filename,fraction):
     str_times_list = []
     wb = xlrd.open_workbook(filename)
     sheet = wb.sheet_by_index(0)
@@ -54,39 +55,6 @@ def normalize_time(tl):
 def get_empty_results_dictionary():
     return {"total" : [], "swim" : [], "t1" : [], "bike" : [], "t2" : [], "run" : []}
 
-def read_ledro_2017():
-
-    time_strings = get_empty_results_dictionary()
-
-    with open('./data/2017-maschile-ledro.csv', 'rb') as csvfile:
-
-        csv_reader = csv.reader(csvfile, delimiter=',', quotechar='|')
-
-        for row in csv_reader:
-            #if i > 0:
-            string = (','.join(','.join(item.split()) for item in row))
-            line = string.replace(",,",",")
-            line = line.replace(",,",",")
-
-            time_strings["total"].append(line.split(",")[-15])
-            time_strings["swim"].append(line.split(",")[-13])
-            time_strings["t1"].append(line.split(",")[-10])
-            time_strings["bike"].append(line.split(",")[-8])
-            time_strings["t2"].append(line.split(",")[-5])
-            time_strings["run"].append(line.split(",")[-3])
-
-
-
-    times = {}
-
-    for key, val in time_strings.items():
-        time_strings[key] = val[1:]
-
-    for key, val in time_strings.items():
-        times[key] = string_to_time(val)
-    return times
-
-
 def read_ledro_csv_format(filename):
 
     time_strings = get_empty_results_dictionary()
@@ -103,21 +71,12 @@ def read_ledro_csv_format(filename):
             line = string.replace(",,",",")
             line = line.replace(",,",",")
 
-            #print(line)
-            # print(line.split(",")[-15])
-
             time_strings["total"].append(line.split(",")[-15])
             time_strings["swim"].append(line.split(",")[-13])
             time_strings["t1"].append(line.split(",")[-10])
             time_strings["bike"].append(line.split(",")[-8])
             time_strings["t2"].append(line.split(",")[-5])
             time_strings["run"].append(line.split(",")[-3])
-            #print(time_strings["total"])
-            # print(time_strings["swim"])
-            # print(time_strings["t1"])
-            # print(time_strings["bike"])
-            # print(time_strings["t2"])
-            # print(time_strings["run"])
 
     times = {}
 
@@ -131,34 +90,47 @@ def read_ledro_csv_format(filename):
 
 if __name__ == "__main__":
 
-    # print(ex)
-    # print(new)
-
-
-    times = read_ledro_csv_format('./data/2017-maschile-ledro.csv')
+    data_path = "./data/"
+    data_files = ["2014-maschile-ledro.xls",
+                  "2014-maschile-ledro.xls",
+                  "2018-maschile-ledro.xls"]
     #
-    # print(times["total"])
-    # print(times["t1"])
-    # print(times["run"])
-
-    # #times_list = read_times("2018.xls")
+    times = np.zeros((0,))
     #
-    # data_path = "./data/"
-    #
-    # print(read_times(data_path+"2018-maschile-ledro.xls","TEMPO_UFFICIALE")[0:10])
+    for df in data_files:
+        times = np.hstack((times,read_times_xls(data_path+df,"TEMPO_UFFICIALE")))
 
-    #print(normalize_time(read_times(data_path+"2019-maschile-milano.xls","TEMPO_UFFICIALE")))
+    data_files = ["2016-maschile-ledro.csv",
+                  "2017-maschile-ledro.csv"]
 
-    #
-    # data_files = get_files_list(data_path)
-    #
-    # times = np.zeros((0,))
-    #
-    # for df in data_files:
-    #     times = np.hstack((times,normalize_time(read_times(data_path+df,"TEMPO_UFFICIALE"))))
+    for df in data_files:
+        times = np.hstack((times,read_ledro_csv_format(data_path+df)["total"]))
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(2,1)
 
-    ax.hist(times["total"],40)
+    bins = np.arange(3480,7500,60)
+
+    values = ax[0].hist(times,bins)
+
+    plt.sca(ax[0])
+    plt.xticks(bins, [])
+    plt.grid(axis='x')
+    plt.title('num of samples ='+str(times.shape[0]))
+
+
+    res = ax[1].hist(times,bins, density=True,
+                           cumulative=True)
+    plt.sca(ax[1])
+
+    xlabels = [str(timedelta(seconds=t)) for t in bins]
+
+
+    plt.xticks(bins, xlabels, rotation=60)
+
+    expected_percentile = [.7,.8]
+    ylabels = [str(p) for p in expected_percentile]
+    plt.yticks(expected_percentile, ylabels)
+
+    plt.grid()
 
     plt.show()
